@@ -92,98 +92,88 @@ def create_ledger(ledger_name, parent_group, opening_balance=0.0):
 
 def create_voucher(vouchers_data):
     """
-    Creates one or more Vouchers in TallyPrime based on the provided list of data.
-    Generates the required XML in the correct structure, matching Tally's expectations.
+    Simplified version for creating vouchers with minimal XML structure
     """
     all_vouchers_xml = ""
+    
     for voucher_data in vouchers_data:
-        # Format DATE as YYYYMMDD
+        # Format DATE as DD-MMM-YYYY
         voucher_date = voucher_data.get('date')
         if hasattr(voucher_date, 'strftime'):
-            formatted_date = voucher_date.strftime("%Y%m%d")
-        else:  # accept already formatted string or int
+            formatted_date = voucher_date.strftime("%d-%b-%Y")
+        else:
             formatted_date = str(voucher_date)
         
+        # Build ledger entries
         ledger_entries_xml = ""
         for entry in voucher_data.get('ledger_entries', []):
             is_deemed_positive = 'Yes' if entry.get('is_deemed_positive', False) else 'No'
-            amount = abs(entry['amount']) if is_deemed_positive == 'Yes' else -abs(entry['amount'])
+            amount = abs(float(entry['amount'])) if is_deemed_positive == 'Yes' else -abs(float(entry['amount']))
+            
             ledger_entries_xml += f"""
                 <ALLLEDGERENTRIES.LIST>
                     <LEDGERNAME>{entry['ledger_name']}</LEDGERNAME>
                     <ISDEEMEDPOSITIVE>{is_deemed_positive}</ISDEEMEDPOSITIVE>
                     <AMOUNT>{amount}</AMOUNT>
-                </ALLLEDGERENTRIES.LIST>
-            """
+                </ALLLEDGERENTRIES.LIST>"""
         
-        # Voucher block (one per voucher)
-        all_vouchers_xml += f"""
-            <VOUCHER>
+        # Simple voucher structure
+        voucher_xml = f"""
+            <VOUCHER VCHTYPE="{voucher_data['voucher_type']}" ACTION="Create">
                 <DATE>{formatted_date}</DATE>
                 <NARRATION>{voucher_data.get('narration', '')}</NARRATION>
                 <VOUCHERTYPENAME>{voucher_data['voucher_type']}</VOUCHERTYPENAME>
-                <VOUCHERNUMBER>{voucher_data['voucher_number']}</VOUCHERNUMBER>
-                <PERSISTEDVIEW>Accounting Voucher View</PERSISTEDVIEW>
-                <ISINVOICE>{"Yes" if voucher_data.get('is_invoice', False) else "No"}</ISINVOICE>
-                {ledger_entries_xml}
-            </VOUCHER>
-        """
+                <VOUCHERNUMBER>{voucher_data['voucher_number']}</VOUCHERNUMBER>{ledger_entries_xml}
+            </VOUCHER>"""
+        
+        all_vouchers_xml += voucher_xml
 
-    # Full XML - as per Tally's Import Vouchers requirement
-    xml_request = f"""
-    <ENVELOPE>
-        <HEADER>
-            <TALLYREQUEST>Import</TALLYREQUEST>
-        </HEADER>
-        <BODY>
-            <IMPORTDATA>
-                <REQUESTDESC>
-                    <REPORTNAME>Vouchers</REPORTNAME>
-                </REQUESTDESC>
-                <REQUESTDATA>
-                    <TALLYMESSAGE xmlns:UDF="TallyUDF">
-                        {all_vouchers_xml}
-                    </TALLYMESSAGE>
-                </REQUESTDATA>
-            </IMPORTDATA>
-        </BODY>
-    </ENVELOPE>"""
+    # Simplified XML structure
+    xml_request = f"""<ENVELOPE>
+    <HEADER>
+        <TALLYREQUEST>Import Data</TALLYREQUEST>
+    </HEADER>
+    <BODY>
+        <IMPORTDATA>
+            <REQUESTDESC>
+                <REPORTNAME>Vouchers</REPORTNAME>
+            </REQUESTDESC>
+            <REQUESTDATA>
+                <TALLYMESSAGE xmlns:UDF="TallyUDF">{all_vouchers_xml}
+                </TALLYMESSAGE>
+            </REQUESTDATA>
+        </IMPORTDATA>
+    </BODY>
+</ENVELOPE>"""
 
     return send_request_to_tally(xml_request)
 
 if __name__ == "__main__":
-    # Example voucher data to create (add more vouchers to the list if needed)
     vouchers_data = [
         {
-            "date": "20250914",  # Or a Python date object, e.g., datetime.date(2025, 9, 14)
-            "narration": "Payment for invoice #456",
-            "voucher_type": "Payment",
-            "voucher_number": "101",
-            "is_invoice": False,
-            "ledger_entries": [
+            'date': '02-Apr-2025',  # DD-MMM-YYYY format
+            'voucher_type': 'Journal',
+            'voucher_number': '1',
+            'narration': 'Test voucher entry',
+            'is_invoice': False,
+            'ledger_entries': [
                 {
-                    "ledger_name": "Cash",
-                    "is_deemed_positive": False,  # Cr side
-                    "amount": 5000
+                    'ledger_name': 'Cash',
+                    'amount': 1000,
+                    'is_deemed_positive': True
                 },
                 {
-                    "ledger_name": "Sales",
-                    "is_deemed_positive": True,  # Dr side
-                    "amount": 5000
+                    'ledger_name': 'Sales',
+                    'amount': 1000,
+                    'is_deemed_positive': False
                 }
             ]
         }
     ]
-
-    # Call the function to create voucher(s)
-    response = create_voucher(vouchers_data)
-
-    # Print the response from Tally (for debugging/logging)
-    print("Tally Response:")
-    print(response)
-
-   
     
+    response = create_voucher(vouchers_data)
+    
+    print(json.dumps(response, indent=2))
     
     # setup_essential_masters()
    
