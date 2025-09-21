@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from datetime import datetime
 
 class GroupSerializer(serializers.Serializer):
     """
@@ -17,15 +18,24 @@ class LedgerSerializer(serializers.Serializer):
     
 
 class LedgerEntrySerializer(serializers.Serializer):
-    ledger_name = serializers.CharField(max_length=255)
+    ledger_name = serializers.CharField()
     amount = serializers.DecimalField(max_digits=15, decimal_places=2)
-    is_deemed_positive = serializers.BooleanField(required=False,default=False)
-    is_party_ledger = serializers.BooleanField(required=False,default=False)
-    
+    is_deemed_positive = serializers.BooleanField( default=False)
+
+class FlexibleDateField(serializers.DateField):
+    def to_internal_value(self, value):
+        # try multiple formats
+        for fmt in ("%Y-%m-%d", "%d-%b-%Y", "%Y%m%d"):
+            try:
+                return datetime.strptime(value, fmt).date()
+            except ValueError:
+                continue
+        self.fail("invalid", format="YYYY-MM-DD or DD-MMM-YYYY or YYYYMMDD")
+
 class VoucherSerializer(serializers.Serializer):
-    voucher_type = serializers.CharField(max_length=100)
-    voucher_number = serializers.CharField(max_length=255)
-    date = serializers.DateField(format="%Y%m%d")
-    is_invoice = serializers.BooleanField(required=False,default=True)
+    date = FlexibleDateField()
+    voucher_type = serializers.CharField()
+    voucher_number = serializers.CharField()
+    narration = serializers.CharField(required=False, allow_blank=True)
+    is_invoice = serializers.BooleanField(default=False)
     ledger_entries = LedgerEntrySerializer(many=True)
-    

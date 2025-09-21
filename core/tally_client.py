@@ -151,20 +151,20 @@ def create_voucher(vouchers_data):
 if __name__ == "__main__":
     vouchers_data = [
         {
-            'date': '02-Apr-2025',  # DD-MMM-YYYY format
+            'date': '02-Apr-2025', 
             'voucher_type': 'Journal',
-            'voucher_number': '1',
+            'voucher_number': '10',
             'narration': 'Test voucher entry',
             'is_invoice': False,
             'ledger_entries': [
                 {
                     'ledger_name': 'Cash',
-                    'amount': 1000,
+                    'amount': 10000,
                     'is_deemed_positive': True
                 },
                 {
                     'ledger_name': 'Sales',
-                    'amount': 1000,
+                    'amount': 10000,
                     'is_deemed_positive': False
                 }
             ]
@@ -174,63 +174,3 @@ if __name__ == "__main__":
     response = create_voucher(vouchers_data)
     
     print(json.dumps(response, indent=2))
-    
-    # setup_essential_masters()
-   
-    # TEST to create a new group in Tally
-    
-    # print("Attempting to create a new Tally group...")
-    
-    # # You can change these values to test different scenarios
-    # test_group_name = "My Test Group"
-    # test_parent_group = "Sundry Debtors" 
-    
-    # try:
-    #     response = create_group(test_group_name, test_parent_group)
-    #     import json
-        
-    #     # Check Tally's response for success/failure
-    #     # Tally returns a <RESPONSE> tag with <CREATED> count on success
-    #     if response and 'RESPONSE' in response and 'CREATED' in response['RESPONSE']:
-    #         created_count = response['RESPONSE']['CREATED']
-    #         if created_count and int(created_count) > 0:
-    #             print(f"✅ Success! Created {created_count} group(s).")
-    #             print("Full Response (as a Python dictionary):")
-    #             print(json.dumps(response, indent=2))
-    #         else:
-    #             print("⚠️  Connected, but Tally did not create a new group. It might already exist.")
-    #             print("Full Response (as a Python dictionary):")
-    #             print(json.dumps(response, indent=2))
-    #     else:
-    #         print("❌ Failure: Unexpected Tally response format.")
-    #         print("Full Response (as a Python dictionary):")
-    #         print(json.dumps(response, indent=2))
-            
-    # except Exception as e:
-    #     print(f"❌ An error occurred: {e}")
-
-
-# Test to create a new ledger in Tally
-    # test_ledger_name = "Customer ABC"
-    # test_ledger_parent = "Sundry Debtors" 
-    # test_opening_balance = 7500.00
-    
-    # try:
-    #     response = create_ledger(test_ledger_name, test_ledger_parent, test_opening_balance)
-    #     if response and 'RESPONSE' in response and 'CREATED' in response['RESPONSE']:
-    #         created_count = response['RESPONSE']['CREATED']
-    #         if created_count and int(created_count) > 0:
-    #             print(f"✅ Success! Created {created_count} ledger(s).")
-    #             print("Full Response (as a Python dictionary):")
-    #             print(json.dumps(response, indent=2))
-    #         else:
-    #             print("⚠️  Connected, but Tally did not create a new ledger. It might already exist.")
-    #             print("Full Response (as a Python dictionary):")
-    #             print(json.dumps(response, indent=2))
-    #     else:
-    #         print("❌ Failure: Unexpected Tally response format for ledger creation.")
-    #         print("Full Response (as a Python dictionary):")
-    #         print(json.dumps(response, indent=2))
-            
-    # except Exception as e:
-    #     print(f"❌ An error occurred during ledger creation: {e}")
