@@ -5,20 +5,24 @@ import json
 
 class TallyClient:
     """
-    Base class for all Tally API requests.
+    Base client for all Tally API requests.
     Handles the core request/response logic.
     """
     TALLY_URL = "http://localhost:9000"
 
-    def _send_request(self, xml_request):
+    def _send_request_to_tally(self, xml_request):
         """
         Sends an XML request to the TallyPrime server and returns the parsed XML response as a dictionary.
+        This method is for internal use.
         """
         headers = {'Content-Type': 'application/xml'}
         try:
             response = requests.post(self.TALLY_URL, data=xml_request, headers=headers)
             response.raise_for_status()
-            return xmltodict.parse(response.content)
+            # Tally can return a single string in some error cases, handle that here.
+            if response.text.startswith("<"):
+                return xmltodict.parse(response.content)
+            return {"RESPONSE": response.text}
 
         except requests.exceptions.RequestException as e:
             print(f"Error: Could not connect to TallyPrime at {self.TALLY_URL}. Is the application running?")
@@ -26,7 +30,7 @@ class TallyClient:
 
 class TallyMaster(TallyClient):
     """
-    A class for general Master-related operations.
+    A class for general Master-related operations (Ledgers, Groups, etc.).
     """
     def create_group(self, group_name, parent_group):
         """
@@ -43,7 +47,7 @@ class TallyMaster(TallyClient):
                     </REQUESTDESC>
                     <REQUESTDATA>
                         <TALLYMESSAGE xmlns:UDF="TallyUDF">
-                            <GROUP Action="Create">
+                            <GROUP ACTION="Create">
                                 <NAME>{group_name}</NAME>
                                 <PARENT>{parent_group}</PARENT>
                             </GROUP>
@@ -52,7 +56,7 @@ class TallyMaster(TallyClient):
                 </IMPORTDATA>
             </BODY>
             </ENVELOPE>"""
-        return self._send_request(xml_request)
+        return self._send_request_to_tally(xml_request)
 
     def create_ledger(self, ledger_name, parent_group, opening_balance=0.0):
         """
@@ -79,7 +83,7 @@ class TallyMaster(TallyClient):
                 </IMPORTDATA>
             </BODY>
         </ENVELOPE>"""
-        return self._send_request(xml_request)
+        return self._send_request_to_tally(xml_request)
 
 class TallyVoucher(TallyClient):
     """
@@ -93,7 +97,6 @@ class TallyVoucher(TallyClient):
         for voucher_data in vouchers_data:
             voucher_date = voucher_data.get('date')
             if hasattr(voucher_date, 'strftime'):
-                # Correcting the date format to YYYYMMDD as Tally does not accept DD-MMM-YYYY for imports
                 formatted_date = voucher_date.strftime("%Y%m%d")
             else:
                 formatted_date = str(voucher_date)
@@ -140,12 +143,12 @@ class TallyVoucher(TallyClient):
         </BODY>
     </ENVELOPE>"""
 
-        return self._send_request(xml_request)
+        return self._send_request_to_tally(xml_request)
 
 if __name__ == "__main__":
     client = TallyClient()
-    master_api = TallyMaster() # Instance of TallyMaster
-    voucher_api = TallyVoucher() # Instance of TallyVoucher
+    master_api = TallyMaster()
+    voucher_api = TallyVoucher()
 
     # Pre-create a few ledgers for our test vouchers
     try:
@@ -177,17 +180,6 @@ if __name__ == "__main__":
             'ledger_entries': [
                 {'ledger_name': 'Conveyance', 'amount': 750.00, 'is_deemed_positive': True},
                 {'ledger_name': 'Bank of India', 'amount': -750.00, 'is_deemed_positive': False}
-            ]
-        },
-        {
-            'date': '20250915',
-            'voucher_type': 'Receipt',
-            'voucher_number': 'RC-001',
-            'narration': 'Cash received from sale.',
-            'is_invoice': False,
-            'ledger_entries': [
-                {'ledger_name': 'Cash', 'amount': 1500.00, 'is_deemed_positive': True},
-                {'ledger_name': 'Sales', 'amount': -1500.00, 'is_deemed_positive': False}
             ]
         }
     ]

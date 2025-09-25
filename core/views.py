@@ -147,143 +147,143 @@
 #                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
 #             )
 
-# # class CreateVoucherView(APIView):
-# #     """
-# #     API to create a single voucher in TallyPrime
-# #     """
-# #     def convert_date_format(self, voucher_data):
-# #         """Convert date from YYYY-MM-DD to DD-MMM-YYYY format"""
-# #         from datetime import datetime
+# class CreateVoucherView(APIView):
+#     """
+#     API to create a single voucher in TallyPrime
+#     """
+#     def convert_date_format(self, voucher_data):
+#         """Convert date from YYYY-MM-DD to DD-MMM-YYYY format"""
+#         from datetime import datetime
         
-# #         if isinstance(voucher_data['date'], str):
-# #             try:
-# #                 date_obj = datetime.strptime(str(voucher_data['date']), "%Y-%m-%d")
-# #                 voucher_data['date'] = date_obj.strftime("%d-%b-%Y")
-# #             except:
-# #                 pass  # Keep original if conversion fails
-# #         return voucher_data
+#         if isinstance(voucher_data['date'], str):
+#             try:
+#                 date_obj = datetime.strptime(str(voucher_data['date']), "%Y-%m-%d")
+#                 voucher_data['date'] = date_obj.strftime("%d-%b-%Y")
+#             except:
+#                 pass  # Keep original if conversion fails
+#         return voucher_data
     
-# #     def post(self, request):
-# #         serializer = VoucherSerializer(data=request.data)
+#     def post(self, request):
+#         serializer = VoucherSerializer(data=request.data)
         
-# #         if serializer.is_valid():
-# #             voucher_data = serializer.validated_data
+#         if serializer.is_valid():
+#             voucher_data = serializer.validated_data
             
-# #             # Convert date format before sending to Tally
-# #             voucher_data = self.convert_date_format(voucher_data)
-# #             voucher_list = [voucher_data]  # Convert to list for your function
+#             # Convert date format before sending to Tally
+#             voucher_data = self.convert_date_format(voucher_data)
+#             voucher_list = [voucher_data]  # Convert to list for your function
             
-# #             try:
-# #                 tally_response = create_voucher(voucher_list)
+#             try:
+#                 tally_response = create_voucher(voucher_list)
                 
-# #                 # Check if voucher was created successfully
-# #                 if (tally_response and 'RESPONSE' in tally_response and 
-# #                     'CREATED' in tally_response['RESPONSE']):
-# #                     created_count = tally_response['RESPONSE']['CREATED']
+#                 # Check if voucher was created successfully
+#                 if (tally_response and 'RESPONSE' in tally_response and 
+#                     'CREATED' in tally_response['RESPONSE']):
+#                     created_count = tally_response['RESPONSE']['CREATED']
                     
-# #                     if created_count and int(created_count) > 0:
-# #                         return Response({
-# #                             "success": True,
-# #                             "message": f"Successfully created voucher '{serializer.validated_data['voucher_number']}'",
-# #                             "voucher_number": serializer.validated_data['voucher_number'],
-# #                             "voucher_type": serializer.validated_data['voucher_type'],
-# #                             "created_count": int(created_count)
-# #                         }, status=status.HTTP_201_CREATED)
-# #                     else:
-# #                         return Response({
-# #                             "success": False,
-# #                             "error": "Voucher was not created. Check the response for details.",
-# #                             "tally_response": tally_response
-# #                         }, status=status.HTTP_409_CONFLICT)
-# #                 else:
-# #                     return Response({
-# #                         "success": False,
-# #                         "error": "Unexpected response from Tally",
-# #                         "tally_response": tally_response
-# #                     }, status=status.HTTP_400_BAD_REQUEST)
+#                     if created_count and int(created_count) > 0:
+#                         return Response({
+#                             "success": True,
+#                             "message": f"Successfully created voucher '{serializer.validated_data['voucher_number']}'",
+#                             "voucher_number": serializer.validated_data['voucher_number'],
+#                             "voucher_type": serializer.validated_data['voucher_type'],
+#                             "created_count": int(created_count)
+#                         }, status=status.HTTP_201_CREATED)
+#                     else:
+#                         return Response({
+#                             "success": False,
+#                             "error": "Voucher was not created. Check the response for details.",
+#                             "tally_response": tally_response
+#                         }, status=status.HTTP_409_CONFLICT)
+#                 else:
+#                     return Response({
+#                         "success": False,
+#                         "error": "Unexpected response from Tally",
+#                         "tally_response": tally_response
+#                     }, status=status.HTTP_400_BAD_REQUEST)
                     
-# #             except Exception as e:
-# #                 return Response({
-# #                     "success": False,
-# #                     "error": "Error connecting to Tally",
-# #                     "details": str(e)
-# #                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+#             except Exception as e:
+#                 return Response({
+#                     "success": False,
+#                     "error": "Error connecting to Tally",
+#                     "details": str(e)
+#                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-# #         return Response({
-# #             "success": False,
-# #             "error": "Validation failed",
-# #             "details": serializer.errors
-# #         }, status=status.HTTP_400_BAD_REQUEST)
+#         return Response({
+#             "success": False,
+#             "error": "Validation failed",
+#             "details": serializer.errors
+#         }, status=status.HTTP_400_BAD_REQUEST)
 
 
-# # class CreateVoucherBatchView(APIView):
-# #     """
-# #     API to create multiple vouchers in TallyPrime
-# #     """
-# #     def convert_date_format(self, voucher_data):
-# #         """Convert date from YYYY-MM-DD to DD-MMM-YYYY format"""
-# #         from datetime import datetime
+# class CreateVoucherBatchView(APIView):
+#     """
+#     API to create multiple vouchers in TallyPrime
+#     """
+#     def convert_date_format(self, voucher_data):
+#         """Convert date from YYYY-MM-DD to DD-MMM-YYYY format"""
+#         from datetime import datetime
         
-# #         if isinstance(voucher_data['date'], str):
-# #             try:
-# #                 date_obj = datetime.strptime(str(voucher_data['date']), "%Y-%m-%d")
-# #                 voucher_data['date'] = date_obj.strftime("%d-%b-%Y")
-# #             except:
-# #                 pass  # Keep original if conversion fails
-# #         return voucher_data
+#         if isinstance(voucher_data['date'], str):
+#             try:
+#                 date_obj = datetime.strptime(str(voucher_data['date']), "%Y-%m-%d")
+#                 voucher_data['date'] = date_obj.strftime("%d-%b-%Y")
+#             except:
+#                 pass  # Keep original if conversion fails
+#         return voucher_data
     
-# #     def post(self, request):
-# #         serializer = VoucherSerializer(data=request.data, many=True)
+#     def post(self, request):
+#         serializer = VoucherSerializer(data=request.data, many=True)
         
-# #         if serializer.is_valid():
-# #             vouchers_data = serializer.validated_data
+#         if serializer.is_valid():
+#             vouchers_data = serializer.validated_data
             
-# #             # Convert date format for each voucher
-# #             for i, voucher in enumerate(vouchers_data):
-# #                 vouchers_data[i] = self.convert_date_format(voucher)
+#             # Convert date format for each voucher
+#             for i, voucher in enumerate(vouchers_data):
+#                 vouchers_data[i] = self.convert_date_format(voucher)
             
-# #             try:
-# #                 tally_response = create_voucher(vouchers_data)
+#             try:
+#                 tally_response = create_voucher(vouchers_data)
                 
-# #                 # Check if vouchers were created successfully
-# #                 if (tally_response and 'RESPONSE' in tally_response and 
-# #                     'CREATED' in tally_response['RESPONSE']):
-# #                     created_count = tally_response['RESPONSE']['CREATED']
-# #                     total_vouchers = len(vouchers_data)
+#                 # Check if vouchers were created successfully
+#                 if (tally_response and 'RESPONSE' in tally_response and 
+#                     'CREATED' in tally_response['RESPONSE']):
+#                     created_count = tally_response['RESPONSE']['CREATED']
+#                     total_vouchers = len(vouchers_data)
                     
-# #                     if created_count and int(created_count) > 0:
-# #                         return Response({
-# #                             "success": True,
-# #                             "message": f"Successfully created {created_count} out of {total_vouchers} vouchers",
-# #                             "created_count": int(created_count),
-# #                             "total_requested": total_vouchers,
-# #                             "voucher_numbers": [v['voucher_number'] for v in vouchers_data]
-# #                         }, status=status.HTTP_201_CREATED)
-# #                     else:
-# #                         return Response({
-# #                             "success": False,
-# #                             "error": "No vouchers were created. Check the response for details.",
-# #                             "tally_response": tally_response
-# #                         }, status=status.HTTP_409_CONFLICT)
-# #                 else:
-# #                     return Response({
-# #                         "success": False,
-# #                         "error": "Unexpected response from Tally",
-# #                         "tally_response": tally_response
-# #                     }, status=status.HTTP_400_BAD_REQUEST)
+#                     if created_count and int(created_count) > 0:
+#                         return Response({
+#                             "success": True,
+#                             "message": f"Successfully created {created_count} out of {total_vouchers} vouchers",
+#                             "created_count": int(created_count),
+#                             "total_requested": total_vouchers,
+#                             "voucher_numbers": [v['voucher_number'] for v in vouchers_data]
+#                         }, status=status.HTTP_201_CREATED)
+#                     else:
+#                         return Response({
+#                             "success": False,
+#                             "error": "No vouchers were created. Check the response for details.",
+#                             "tally_response": tally_response
+#                         }, status=status.HTTP_409_CONFLICT)
+#                 else:
+#                     return Response({
+#                         "success": False,
+#                         "error": "Unexpected response from Tally",
+#                         "tally_response": tally_response
+#                     }, status=status.HTTP_400_BAD_REQUEST)
                     
-# #             except Exception as e:
-# #                 return Response({
-# #                     "success": False,
-# #                     "error": "Error connecting to Tally",
-# #                     "details": str(e)
-# #                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+#             except Exception as e:
+#                 return Response({
+#                     "success": False,
+#                     "error": "Error connecting to Tally",
+#                     "details": str(e)
+#                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-# #         return Response({
-# #             "success": False,
-# #             "error": "Validation failed",
-# #             "details": serializer.errors
-# #         }, status=status.HTTP_400_BAD_REQUEST)
+#         return Response({
+#             "success": False,
+#             "error": "Validation failed",
+#             "details": serializer.errors
+#         }, status=status.HTTP_400_BAD_REQUEST)
 
 from rest_framework import status
 from rest_framework.response import Response
