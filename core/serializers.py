@@ -22,18 +22,18 @@ class LedgerEntrySerializer(serializers.Serializer):
     amount = serializers.DecimalField(max_digits=15, decimal_places=2)
     is_deemed_positive = serializers.BooleanField( default=False)
 
-class FlexibleDateField(serializers.DateField):
-    def to_internal_value(self, value):
-        # try multiple formats
-        for fmt in ("%Y-%m-%d", "%d-%b-%Y", "%Y%m%d"):
-            try:
-                return datetime.strptime(value, fmt).date()
-            except ValueError:
-                continue
-        self.fail("invalid", format="YYYY-MM-DD or DD-MMM-YYYY or YYYYMMDD")
+# class FlexibleDateField(serializers.DateField):
+#     def to_internal_value(self, value):
+#         # try multiple formats
+#         for fmt in ("%Y-%m-%d", "%d-%b-%Y", "%Y%m%d"):
+#             try:
+#                 return datetime.strptime(value, fmt).date()
+#             except ValueError:
+#                 continue
+#         self.fail("invalid", format="YYYY-MM-DD or DD-MMM-YYYY or YYYYMMDD")
 
 class VoucherSerializer(serializers.Serializer):
-    date = FlexibleDateField()
+    date = serializers.DateField(format="%Y%m%d", input_formats=["%Y%m%d", "%Y-%m-%d", "%d-%b-%Y"]) 
     voucher_type = serializers.CharField()
     voucher_number = serializers.CharField()
     narration = serializers.CharField(required=False, allow_blank=True)

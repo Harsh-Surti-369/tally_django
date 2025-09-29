@@ -58,6 +58,7 @@ class TallyMaster(TallyClient):
             </ENVELOPE>"""
         return self._send_request_to_tally(xml_request)
 
+
     def create_ledger(self, ledger_name, parent_group, opening_balance=0.0):
         """
         Creates a new Ledger master in TallyPrime.
@@ -84,7 +85,6 @@ class TallyMaster(TallyClient):
             </BODY>
         </ENVELOPE>"""
         return self._send_request_to_tally(xml_request)
-
 class TallyVoucher(TallyClient):
     """
     A class for all Voucher-related operations.
@@ -96,14 +96,22 @@ class TallyVoucher(TallyClient):
         all_vouchers_xml = ""
         for voucher_data in vouchers_data:
             voucher_date = voucher_data.get('date')
-            if hasattr(voucher_date, 'strftime'):
+            
+            # --- FIX: Robust Date Formatting ---
+            if isinstance(voucher_date, (str, int)):
+                # Assume the string/int is already in YYYYMMDD format (e.g., "20250913")
+                formatted_date = str(voucher_date)
+            elif hasattr(voucher_date, 'strftime'):
+                # Format datetime/date objects into the required YYYYMMDD string format
                 formatted_date = voucher_date.strftime("%Y%m%d")
             else:
-                formatted_date = str(voucher_date)
+                # Fallback error check if date is neither a string nor a datetime object
+                raise ValueError("Voucher date must be a YYYYMMDD string or a date/datetime object.")
+            # --- END FIX ---
             
             ledger_entries_xml = ""
             for entry in voucher_data.get('ledger_entries', []):
-                is_deemed_positive = 'Yes' if entry.get('is_deemed_positive', False) else 'No'
+                is_deemed_positive = 'Yes' if entry.get('is_deemed_positive', True) else 'No'
                 amount = float(entry['amount'])
                 
                 ledger_entries_xml += f"""

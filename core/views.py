@@ -284,7 +284,6 @@
 #             "error": "Validation failed",
 #             "details": serializer.errors
 #         }, status=status.HTTP_400_BAD_REQUEST)
-
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -373,56 +372,57 @@ class CreateLedgerView(APIView):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class CreateVoucher(APIView):
+class CreateVoucherView(APIView):
+    """
+    API endpoint to create a batch of vouchers in TallyPrime.
+    """
     def post(self, request):
-        serializer = VoucherSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            tally_response = voucher_api.create([serializer.validated_data])
-            response_data = tally_response.get("RESPONSE", {})
+        # We expect a list of vouchers, so many=True is needed
+        serializer = VoucherSerializer(data=request.data, many=True)
+        
+        if serializer.is_valid():
+            vouchers_data = serializer.validated_data
             
-            created = int(response_data.get("CREATED", 0))
-            altered = int(response_data.get("ALTERED", 0))
-            errors = int(response_data.get("ERRORS", 0))
-            exceptions = int(response_data.get("EXCEPTIONS", 0))
-
-            if created > 0:
-                return Response(
-                    {
-                        "message": f"✅ Voucher created successfully ({created}).",
-                        "details": response_data,
-                    },
-                    status=status.HTTP_201_CREATED,
-                )
-            elif altered > 0:
-                return Response(
-                    {
-                        "message": f"ℹ️ Voucher altered ({altered}).",
-                        "details": response_data,
-                    },
-                    status=status.HTTP_200_OK,
-                )
-            elif errors > 0 or exceptions > 0:
-                return Response(
-                    {
-                        "message": "❌ Tally returned an error.",
-                        "details": response_data,
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            else:
-                return Response(
-                    {
-                        "message": "⚠️ No voucher created or altered. Check Tally logs.",
-                        "details": response_data,
-                    },
-                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                )
-
-        except Exception as e:
-            return Response(
-                {"error": f"Server/connection error: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            try:
+                tally_response = voucher_api.create(vouchers_data)
+                
+                if tally_response and 'ENVELOPE' in tally_response and 'BODY' in tally_response['ENVELOPE']:
+                    import_result = tally_response['ENVELOPE']['BODY']['DATA']['IMPORTRESULT']
+                    
+                    created = int(import_result.get('CREATED', 0))
+                    altered = int(import_result.get('ALTERED', 0))
+                    exceptions = int(import_result.get('EXCEPTIONS', 0))
+                    
+                    if created > 0:
+                        return Response({
+                            "message": f"Successfully created {created} voucher(s) in Tally.",
+                            "tally_response": tally_response
+                        }, status=status.HTTP_201_CREATED)
+                    elif altered > 0:
+                         return Response({
+                            "message": f"Successfully altered {altered} voucher(s) in Tally.",
+                            "tally_response": tally_response
+                        }, status=status.HTTP_200_OK)
+                    elif exceptions > 0:
+                        return Response({
+                            "error": f"Tally reported {exceptions} exceptions. Check the response for details.",
+                            "tally_response": tally_response
+                        }, status=status.HTTP_409_CONFLICT)
+                    else:
+                        return Response({
+                            "error": "Tally did not create or alter any vouchers. They may already exist.",
+                            "tally_response": tally_response
+                        }, status=status.HTTP_409_CONFLICT)
+                else:
+                    return Response({
+                        "error": "Unexpected response from Tally.",
+                        "tally_response": tally_response
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            except Exception as e:
+                return Response({
+                    "error": "An error occurred while connecting to Tally.",
+                    "details": str(e)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
