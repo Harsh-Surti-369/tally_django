@@ -85,71 +85,103 @@ class TallyMaster(TallyClient):
             </BODY>
         </ENVELOPE>"""
         return self._send_request_to_tally(xml_request)
+
 class TallyVoucher(TallyClient):
     """
     A class for all Voucher-related operations.
     """
+    def _format_date(self, date_value):
+        """
+        Convert various date formats to YYYYMMDD format required by Tally.
+        Handles: date objects, datetime objects, and string formats.
+        """
+        print(f"DEBUG: Input date value: {date_value}, type: {type(date_value)}")
+        
+        if isinstance(date_value, datetime):
+            result = date_value.strftime("%Y%m%d")
+            print(f"DEBUG: Formatted datetime to: {result}")
+            return result
+        elif isinstance(date_value, date):
+            result = date_value.strftime("%Y%m%d")
+            print(f"DEBUG: Formatted date to: {result}")
+            return result
+        elif isinstance(date_value, str):
+            # Try to parse if it's a string
+            for fmt in ("%Y-%m-%d", "%d-%b-%Y", "%Y%m%d"):
+                try:
+                    parsed_date = datetime.strptime(date_value, fmt)
+                    result = parsed_date.strftime("%Y%m%d")
+                    print(f"DEBUG: Parsed string '{date_value}' with format '{fmt}' to: {result}")
+                    return result
+                except ValueError:
+                    continue
+            # If no format matched, assume it's already in YYYYMMDD format
+            print(f"DEBUG: Using string as-is: {date_value}")
+            return date_value
+        else:
+            raise ValueError(f"Unsupported date format: {type(date_value)}")
+
     def create(self, vouchers_data):
         """
         Creates one or more Vouchers in TallyPrime based on the provided list of data.
         """
         all_vouchers_xml = ""
-        for voucher_data in vouchers_data:
-            voucher_date = voucher_data.get('date')
+        
+        for idx, voucher_data in enumerate(vouchers_data):
+            print(f"\n=== Processing Voucher {idx + 1} ===")
+            print(f"Raw voucher data: {voucher_data}")
             
-            # --- FIX: Robust Date Formatting ---
-            if isinstance(voucher_date, (str, int)):
-                # Assume the string/int is already in YYYYMMDD format (e.g., "20250913")
-                formatted_date = str(voucher_date)
-            elif hasattr(voucher_date, 'strftime'):
-                # Format datetime/date objects into the required YYYYMMDD string format
-                formatted_date = voucher_date.strftime("%Y%m%d")
-            else:
-                # Fallback error check if date is neither a string nor a datetime object
-                raise ValueError("Voucher date must be a YYYYMMDD string or a date/datetime object.")
-            # --- END FIX ---
+            # Format the date properly
+            formatted_date = self._format_date(voucher_data.get('date'))
+            print(f"Final formatted date: {formatted_date}")
             
             ledger_entries_xml = ""
             for entry in voucher_data.get('ledger_entries', []):
-                is_deemed_positive = 'Yes' if entry.get('is_deemed_positive', True) else 'No'
+                is_deemed_positive = 'Yes' if entry.get('is_deemed_positive', False) else 'No'
                 amount = float(entry['amount'])
                 
                 ledger_entries_xml += f"""
-                    <ALLLEDGERENTRIES.LIST>
-                        <LEDGERNAME>{entry['ledger_name']}</LEDGERNAME>
-                        <ISDEEMEDPOSITIVE>{is_deemed_positive}</ISDEEMEDPOSITIVE>
-                        <AMOUNT>{amount}</AMOUNT>
-                    </ALLLEDGERENTRIES.LIST>"""
+                <ALLLEDGERENTRIES.LIST>
+                    <LEDGERNAME>{entry['ledger_name']}</LEDGERNAME>
+                    <ISDEEMEDPOSITIVE>{is_deemed_positive}</ISDEEMEDPOSITIVE>
+                    <AMOUNT>{amount}</AMOUNT>
+                </ALLLEDGERENTRIES.LIST>"""
             
             voucher_xml = f"""
-                <VOUCHER>
-                    <DATE>{formatted_date}</DATE>
-                    <NARRATION>{voucher_data.get('narration', '')}</NARRATION>
-                    <VOUCHERTYPENAME>{voucher_data['voucher_type']}</VOUCHERTYPENAME>
-                    <VOUCHERNUMBER>{voucher_data['voucher_number']}</VOUCHERNUMBER>
-                    <PERSISTEDVIEW>Accounting Voucher View</PERSISTEDVIEW>
-                    <ISINVOICE>{'Yes' if voucher_data.get('is_invoice', False) else 'No'}</ISINVOICE>
-                    {ledger_entries_xml}
-                </VOUCHER>"""
+            <VOUCHER>
+                <GUID></GUID>
+                <DATE>{formatted_date}</DATE>
+                <VOUCHERTYPENAME>{voucher_data['voucher_type']}</VOUCHERTYPENAME>
+                <VOUCHERNUMBER>{voucher_data['voucher_number']}</VOUCHERNUMBER>
+                <NARRATION>{voucher_data.get('narration', '')}</NARRATION>
+                <PARTYLEDGERNAME></PARTYLEDGERNAME>
+                {ledger_entries_xml}
+            </VOUCHER>"""
             
             all_vouchers_xml += voucher_xml
 
         xml_request = f"""<ENVELOPE>
-        <HEADER>
-            <TALLYREQUEST>Import Data</TALLYREQUEST>
-        </HEADER>
-        <BODY>
-            <IMPORTDATA>
-                <REQUESTDESC>
-                    <REPORTNAME>Vouchers</REPORTNAME>
-                </REQUESTDESC>
-                <REQUESTDATA>
-                    <TALLYMESSAGE xmlns:UDF="TallyUDF">{all_vouchers_xml}
-                    </TALLYMESSAGE>
-                </REQUESTDATA>
-            </IMPORTDATA>
-        </BODY>
-    </ENVELOPE>"""
+    <HEADER>
+        <TALLYREQUEST>Import Data</TALLYREQUEST>
+    </HEADER>
+    <BODY>
+        <IMPORTDATA>
+            <REQUESTDESC>
+                <REPORTNAME>Vouchers</REPORTNAME>
+            </REQUESTDESC>
+            <REQUESTDATA>
+                <TALLYMESSAGE xmlns:UDF="TallyUDF">{all_vouchers_xml}
+                </TALLYMESSAGE>
+            </REQUESTDATA>
+        </IMPORTDATA>
+    </BODY>
+</ENVELOPE>"""
+
+        print(f"\n{'='*60}")
+        print("FINAL XML REQUEST:")
+        print(f"{'='*60}")
+        print(xml_request)
+        print(f"{'='*60}\n")
 
         return self._send_request_to_tally(xml_request)
 
@@ -197,4 +229,4 @@ if __name__ == "__main__":
         print("\nFinal Tally Response:")
         print(json.dumps(response, indent=2))
     except Exception as e:
-        print(f"❌ An error occurred during voucher creation: {e}")
+        print(f"An error occurred during voucher creation: {e}")
