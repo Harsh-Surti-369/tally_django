@@ -28,10 +28,48 @@ class TallyClient:
             print(f"Error: Could not connect to TallyPrime at {self.TALLY_URL}. Is the application running?")
             raise Exception(f"Connection Error: {e}")
 
+
 class TallyMaster(TallyClient):
     """
     A class for general Master-related operations (Ledgers, Groups, etc.).
     """
+    def check_group_exists(self, group_name):
+        """
+        Checks if a group exists in TallyPrime by querying for it.
+        """
+        xml_request = f"""<ENVELOPE>
+            <HEADER>
+                <TALLYREQUEST>Export Data</TALLYREQUEST>
+            </HEADER>
+            <BODY>
+                <EXPORTDATA>
+                    <REQUESTDESC>
+                        <REPORTNAME>List of Groups</REPORTNAME>
+                        <STATICVARIABLES>
+                            <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+                        </STATICVARIABLES>
+                    </REQUESTDESC>
+                </EXPORTDATA>
+            </BODY>
+        </ENVELOPE>"""
+        
+        try:
+            response = self._send_request_to_tally(xml_request)
+            # Parse the response to check if the group exists
+            groups_data = response.get('ENVELOPE', {}).get('BODY', {}).get('DATA', {}).get('COLLECTION', {}).get('GROUP', [])
+            
+            # Handle both single group and multiple groups response
+            if isinstance(groups_data, dict):
+                groups_data = [groups_data]
+            
+            for group in groups_data:
+                if group.get('NAME', '').upper() == group_name.upper():
+                    return True
+            return False
+        except Exception:
+            # If we can't check, assume it doesn't exist and let the create method handle it
+            return False
+
     def create_group(self, group_name, parent_group):
         """
         Creates a new Group master in TallyPrime.
@@ -55,9 +93,127 @@ class TallyMaster(TallyClient):
                     </REQUESTDATA>
                 </IMPORTDATA>
             </BODY>
-            </ENVELOPE>"""
+        </ENVELOPE>"""
         return self._send_request_to_tally(xml_request)
+    
+    def alter_group(self, group_name, new_parent_group):
+        """
+        Alters an existing Group master in TallyPrime.
+        """
+        # Escape special characters in group names
+        escaped_group_name = group_name.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        escaped_parent = new_parent_group.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        
+        # Try using the correct TallyPrime XML format for group alteration
+        # Based on TallyPrime documentation, we need to include more fields
+        xml_request = f"""<ENVELOPE>
+            <HEADER>
+                <TALLYREQUEST>Import Data</TALLYREQUEST>
+            </HEADER>
+            <BODY>
+                <IMPORTDATA>
+                    <REQUESTDESC>
+                        <REPORTNAME>All Masters</REPORTNAME>
+                    </REQUESTDESC>
+                    <REQUESTDATA>
+                        <TALLYMESSAGE xmlns:UDF="TallyUDF">
+                            <GROUP ACTION="Alter">
+                                <NAME>{escaped_group_name}</NAME>
+                                <PARENT>{escaped_parent}</PARENT>
+                                <ISSUBLEDGER>No</ISSUBLEDGER>
+                                <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>
+                                <AFFECTSGROSSPROFIT>No</AFFECTSGROSSPROFIT>
+                            </GROUP>
+                        </TALLYMESSAGE>
+                    </REQUESTDATA>
+                </IMPORTDATA>
+            </BODY>
+        </ENVELOPE>"""
+        
+        print(f"DEBUG: Altering group '{group_name}' to parent '{new_parent_group}'")  # Debug line
+        print(f"DEBUG: XML request: {xml_request}")  # Debug line
+        
+        return self._send_request_to_tally(xml_request)
+    
+    def get_group_details(self, group_name):
+        """
+        Get detailed information about a specific group from TallyPrime.
+        """
+        xml_request = f"""<ENVELOPE>
+            <HEADER>
+                <TALLYREQUEST>Export Data</TALLYREQUEST>
+            </HEADER>
+            <BODY>
+                <EXPORTDATA>
+                    <REQUESTDESC>
+                        <REPORTNAME>List of Groups</REPORTNAME>
+                        <STATICVARIABLES>
+                            <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+                        </STATICVARIABLES>
+                    </REQUESTDESC>
+                </EXPORTDATA>
+            </BODY>
+        </ENVELOPE>"""
+        
+        try:
+            response = self._send_request_to_tally(xml_request)
+            print(f"DEBUG: Full Tally response: {response}")  # Debug line
+            
+            groups_data = response.get('ENVELOPE', {}).get('BODY', {}).get('DATA', {}).get('COLLECTION', {}).get('GROUP', [])
+            
+            # Handle both single group and multiple groups response
+            if isinstance(groups_data, dict):
+                groups_data = [groups_data]
+            
+            print(f"DEBUG: Looking for group '{group_name}' in {len(groups_data)} groups")  # Debug line
+            
+            for group in groups_data:
+                group_name_from_tally = group.get('NAME', '')
+                print(f"DEBUG: Found group: '{group_name_from_tally}'")  # Debug line
+                if group_name_from_tally.upper() == group_name.upper():
+                    return group
+            return None
+        except Exception as e:
+            print(f"DEBUG: Exception in get_group_details: {e}")  # Debug line
+            return None
 
+    def delete_group(self, group_name, parent_group=None):
+        """
+        Safely delete a Group master in TallyPrime by marking it as deleted.
+        """
+        escaped_name = (
+            group_name.replace('&', '&amp;')
+                    .replace('<', '&lt;')
+                    .replace('>', '&gt;')
+        )
+
+        parent_xml = f"<PARENT>{parent_group}</PARENT>" if parent_group else ""
+
+        xml_request = f"""<ENVELOPE>
+            <HEADER>
+                <TALLYREQUEST>Import Data</TALLYREQUEST>
+            </HEADER>
+            <BODY>
+                <IMPORTDATA>
+                    <REQUESTDESC>
+                        <REPORTNAME>All Masters</REPORTNAME>
+                    </REQUESTDESC>
+                    
+                    <REQUESTDATA>
+                        <TALLYMESSAGE xmlns:UDF="TallyUDF">
+                            <GROUP NAME={escaped_name[group_name]} ACTION="Delete">
+                                <NAME.LIST>
+                                    <NAME>{escaped_name[group_name]}</NAME>
+                                </NAME>
+                            </GROUP>
+                        </TALLYMESSAGE>
+                    </REQUESTDATA>
+                    
+                </IMPORTDATA>
+            </BODY>
+        </ENVELOPE>"""
+
+        return self._send_request_to_tally(xml_request)
 
     def create_ledger(self, ledger_name, parent_group, opening_balance=0.0):
         """
@@ -74,7 +230,7 @@ class TallyMaster(TallyClient):
                     </REQUESTDESC>
                     <REQUESTDATA>
                         <TALLYMESSAGE xmlns:UDF="TallyUDF">
-                            <LEDGER Action="Create">
+                            <LEDGER ACTION="Create">
                                 <NAME>{ledger_name}</NAME>
                                 <PARENT>{parent_group}</PARENT>
                                 <OPENINGBALANCE>{opening_balance}</OPENINGBALANCE>
@@ -86,6 +242,59 @@ class TallyMaster(TallyClient):
         </ENVELOPE>"""
         return self._send_request_to_tally(xml_request)
 
+    def alter_ledger(self, ledger_name, new_parent_group, new_opening_balance=0.0):
+        """
+        Alters an existing Ledger master in TallyPrime.
+        """
+        xml_request = f"""<ENVELOPE>
+            <HEADER>
+                <TALLYREQUEST>Import Data</TALLYREQUEST>
+            </HEADER>
+            <BODY>
+                <IMPORTDATA>
+                    <REQUESTDESC>
+                        <REPORTNAME>All Masters</REPORTNAME>
+                    </REQUESTDESC>
+                    <REQUESTDATA>
+                        <TALLYMESSAGE xmlns:UDF="TallyUDF">
+                            <LEDGER ACTION="Alter">
+                                <NAME>{ledger_name}</NAME>
+                                <PARENT>{new_parent_group}</PARENT>
+                                <OPENINGBALANCE>{new_opening_balance}</OPENINGBALANCE>
+                            </LEDGER>
+                        </TALLYMESSAGE>
+                    </REQUESTDATA>
+                </IMPORTDATA>
+            </BODY>
+        </ENVELOPE>"""
+        return self._send_request_to_tally(xml_request)
+
+    def delete_ledger(self, ledger_name):
+        """
+        Deletes a Ledger master in TallyPrime by setting its action to 'Delete'.
+        """
+        xml_request = f"""<ENVELOPE>
+            <HEADER>
+                <TALLYREQUEST>Import Data</TALLYREQUEST>
+            </HEADER>
+            <BODY>
+                <IMPORTDATA>
+                    <REQUESTDESC>
+                        <REPORTNAME>All Masters</REPORTNAME>
+                    </REQUESTDESC>
+                    <REQUESTDATA>
+                        <TALLYMESSAGE xmlns:UDF="TallyUDF">
+                            <LEDGER ACTION="Delete">
+                                <NAME>{ledger_name}</NAME>
+                            </LEDGER>
+                        </TALLYMESSAGE>
+                    </REQUESTDATA>
+                </IMPORTDATA>
+            </BODY>
+        </ENVELOPE>"""
+        return self._send_request_to_tally(xml_request)
+
+
 class TallyVoucher(TallyClient):
     """
     A class for all Voucher-related operations.
@@ -95,28 +304,19 @@ class TallyVoucher(TallyClient):
         Convert various date formats to YYYYMMDD format required by Tally.
         Handles: date objects, datetime objects, and string formats.
         """
-        print(f"DEBUG: Input date value: {date_value}, type: {type(date_value)}")
-        
         if isinstance(date_value, datetime):
-            result = date_value.strftime("%Y%m%d")
-            print(f"DEBUG: Formatted datetime to: {result}")
-            return result
+            return date_value.strftime("%Y%m%d")
         elif isinstance(date_value, date):
-            result = date_value.strftime("%Y%m%d")
-            print(f"DEBUG: Formatted date to: {result}")
-            return result
+            return date_value.strftime("%Y%m%d")
         elif isinstance(date_value, str):
             # Try to parse if it's a string
             for fmt in ("%Y-%m-%d", "%d-%b-%Y", "%Y%m%d"):
                 try:
                     parsed_date = datetime.strptime(date_value, fmt)
-                    result = parsed_date.strftime("%Y%m%d")
-                    print(f"DEBUG: Parsed string '{date_value}' with format '{fmt}' to: {result}")
-                    return result
+                    return parsed_date.strftime("%Y%m%d")
                 except ValueError:
                     continue
             # If no format matched, assume it's already in YYYYMMDD format
-            print(f"DEBUG: Using string as-is: {date_value}")
             return date_value
         else:
             raise ValueError(f"Unsupported date format: {type(date_value)}")
@@ -127,13 +327,9 @@ class TallyVoucher(TallyClient):
         """
         all_vouchers_xml = ""
         
-        for idx, voucher_data in enumerate(vouchers_data):
-            print(f"\n=== Processing Voucher {idx + 1} ===")
-            print(f"Raw voucher data: {voucher_data}")
-            
+        for voucher_data in vouchers_data:
             # Format the date properly
             formatted_date = self._format_date(voucher_data.get('date'))
-            print(f"Final formatted date: {formatted_date}")
             
             ledger_entries_xml = ""
             for entry in voucher_data.get('ledger_entries', []):
@@ -177,13 +373,8 @@ class TallyVoucher(TallyClient):
     </BODY>
 </ENVELOPE>"""
 
-        print(f"\n{'='*60}")
-        print("FINAL XML REQUEST:")
-        print(f"{'='*60}")
-        print(xml_request)
-        print(f"{'='*60}\n")
-
         return self._send_request_to_tally(xml_request)
+
 
 if __name__ == "__main__":
     client = TallyClient()
