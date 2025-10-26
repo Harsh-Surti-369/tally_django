@@ -8,8 +8,11 @@ class GroupSerializer(serializers.Serializer):
     group_name = serializers.CharField(max_length=255)
     parent_group = serializers.CharField(max_length=255)
 
-
-
+class DeleteGroupSerializer(serializers.Serializer):
+    """
+    Serializer to handle data for deleting a Tally group.
+    """
+    group_name = serializers.CharField(max_length=255)
 
 class LedgerSerializer(serializers.Serializer):
     """
@@ -17,38 +20,18 @@ class LedgerSerializer(serializers.Serializer):
     """
     ledger_name = serializers.CharField(max_length=255)
     parent_group = serializers.CharField(max_length=255)
-    opening_balance = serializers.DecimalField(max_digits=15, decimal_places=2, default=0.0)
-
-
-class LedgerAlterSerializer(serializers.Serializer):
-    """
-    Serializer to handle data for altering an existing Tally ledger.
-    """
-    new_parent_group = serializers.CharField(max_length=255)
-    new_opening_balance = serializers.DecimalField(max_digits=15, decimal_places=2, default=0.0, required=False)
-
+    opening_balance = serializers.DecimalField(max_digits=15, decimal_places=2)
+    
 
 class LedgerEntrySerializer(serializers.Serializer):
     ledger_name = serializers.CharField()
     amount = serializers.DecimalField(max_digits=15, decimal_places=2)
     is_deemed_positive = serializers.BooleanField(default=False)
 
-
-class FlexibleDateField(serializers.DateField):
-    def to_internal_value(self, value):
-        # Try multiple formats
-        for fmt in ("%Y-%m-%d", "%d-%b-%Y", "%Y%m%d"):
-            try:
-                return datetime.strptime(value, fmt).date()
-            except ValueError:
-                continue
-        self.fail("invalid", format="YYYY-MM-DD or DD-MMM-YYYY or YYYYMMDD")
-
-
 class VoucherSerializer(serializers.Serializer):
-    date = FlexibleDateField()
+    date = serializers.DateField(format="%Y%m%d", input_formats=["%Y%m%d", "%Y-%m-%d", "%d-%b-%Y"]) 
     voucher_type = serializers.CharField()
     voucher_number = serializers.CharField()
-    narration = serializers.CharField(required=False, allow_blank=True, default='')
+    narration = serializers.CharField(required=False, allow_blank=True)
     is_invoice = serializers.BooleanField(default=False)
     ledger_entries = LedgerEntrySerializer(many=True)
